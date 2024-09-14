@@ -1,0 +1,83 @@
+FROM public.ecr.aws/lambda/python:3.12.2024.06.14.15
+
+RUN dnf install wget openssl-devel tar -y 
+
+RUN dnf install -y tar gzip make g++ cmake
+
+RUN pip3 install --no-cache-dir \
+    six \
+    cython \
+    numpy \ 
+    setuptools \
+    wheel \ 
+    setuptools_scm
+
+ARG ARROW_VERSION=16.0.0
+ARG ARROW_BUILD_TYPE=release
+ENV ARROW_HOME=/arrow/dist/
+ENV LD_LIBRARY_PATH=$ARROW_HOME/dist/lib:$LD_LIBRARY_PATH
+ENV CMAKE_PREFIX_PATH=$ARROW_HOME:$CMAKE_PREFIX_PATH
+
+RUN mkdir /arrow \
+    && wget -O /tmp/apache-arrow.tar.gz https://github.com/apache/arrow/archive/apache-arrow-${ARROW_VERSION}.tar.gz \
+    && tar -xvf /tmp/apache-arrow.tar.gz -C /arrow --strip-components 1 \
+    && mkdir /arrow/dist \
+    && export LD_LIBRARY_PATH=/dist/lib:$LD_LIBRARY_PATH \
+    && mkdir -p /arrow/cpp/build \
+    && cd /arrow/cpp/build \
+    && cmake -DCMAKE_BUILD_TYPE=$ARROW_BUILD_TYPE \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DCMAKE_INSTALL_PREFIX=$ARROW_HOME \
+    -DARROW_PARQUET=ON \
+    -DARROW_BUILD_SHARED=ON \
+    -DARROW_BUILD_STATIC=OFF \
+    -DARROW_BUILD_TESTS=OFF \
+    -DARROW_ACERO=OFF \
+    -DARROW_AZURE=OFF \
+    -DARROW_DATASET=OFF \
+    -DARROW_FLIGHT=OFF \
+    -DARROW_GANDIVA=OFF \
+    -DARROW_GCS=OFF \
+    -DARROW_HDFS=OFF \
+    -DARROW_JEMALLOC=OFF \
+    -DARROW_MIMALLOC=OFF \
+    -DARROW_ORC=OFF \
+    -DARROW_PARQUET=ON \
+    -DPARQUET_REQUIRE_ENCRYPTION=OFF \
+    -DARROW_SUBSTRAIT=OFF \
+    -DARROW_S3=OFF \
+    -DARROW_TENSORFLOW=OFF \
+    -DARROW_WITH_BROTLI=OFF \
+    -DARROW_WITH_BZ2=OFF \
+    -DARROW_WITH_LZ4=OFF \
+    -DARROW_WITH_SNAPPY=ON \
+    -DARROW_WITH_ZLIB=OFF \
+    -DARROW_WITH_ZSTD=OFF \
+    -DARROW_CSV=ON \
+    -DARROW_JSON=ON \
+    -DARROW_COMPUTE=ON \
+    -DARROW_FILESYSTEM=ON \
+    -DARROW_RPATH_ORIGIN=ON \
+    -DARROW_USE_CCACHE=ON \
+    .. \
+    && make \
+    && make install
+
+ENV PYARROW_BUILD_TYPE=release
+ENV PYARROW_BUNDLE_ARROW_CPP=1
+ENV PYARROW_WITH_ACERO=0
+ENV PYARROW_WITH_AZURE=0
+ENV PYARROW_WITH_DATASET=0
+ENV PYARROW_WITH_FLIGHT=0
+ENV PYARROW_WITH_GANDIVA=0
+ENV PYARROW_WITH_GCS=0
+ENV PYARROW_WITH_HDFS=0
+ENV PYARROW_WITH_ORC=0
+ENV PYARROW_WITH_PARQUET=1
+ENV PYARROW_WITH_PARQUET_ENCRYPTION=0
+ENV PYARROW_WITH_SUBSTRAIT=0
+ENV PYARROW_WITH_S3=0
+
+RUN dnf install pkgconfig -y \
+    && cd /arrow/python/ \
+    && python setup.py build_ext bdist_wheel

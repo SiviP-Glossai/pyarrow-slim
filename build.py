@@ -25,7 +25,7 @@ cmd = [
     tag,
     ".",
     "-f",
-    "Dockerfile.amazon_linux",
+    "Dockerfile.3.12.amazon_linux",
 ]
 os.system(" ".join(cmd))
 
